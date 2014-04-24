@@ -5,3 +5,50 @@ body {
 a {
   color: #00b7ff;
 }
+
+#RND {
+    width: 1600px;
+    height: 1600px;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #fff;
+    font-size: 8px;
+}
+
+#RND .tile {
+    width: 30px;
+    height: 30px;
+    background: rgba(0, 0, 0, .2);
+    border: 1px solid #aaa;
+    float: left;
+}
+
+
+#RND .tile.ground {
+    background: #9b8d64;
+}
+
+#RND .tile.open {
+    background-color: #aaffaa;
+    border: 1px dotted #229933;
+}
+
+#RND .tile.close {
+    background: #999;
+    border-color: #000;
+}
+
+#RND .tile.current {
+    background: #00b7ff;
+    border-color: #ff44aa;
+}
+
+#RND .tile.wall {
+    background-color: #f40e00;
+}
+
+#RND .tile.path {
+    background-color: #18abff;
+    border: 1px solid #196721;
+}

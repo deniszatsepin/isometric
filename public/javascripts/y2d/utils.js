@@ -32,16 +32,26 @@ var Converter = {
     },
 
     isoToTile: function(x, y, tileWidth) {
+        var pos = this.isoToCart(x, y);
+        return this.cartToTile(pos.x, pos.y, tileWidth);
+    },
+
+    cartToTile: function(x, y, tileWidth) {
         return {
-            x: Math.floor(x / tileWidth),
-            y: Math.floor(y / tileWidth)
+            x: Math.floor(pos.x / tileWidth),
+            y: Math.floor(pos.y / tileWidth)
         };
     },
 
     tileToIso: function(x, y, tileWidth) {
+        var pos = this.tileToCart(x, y, tileWidth);
+        return this.cartToIso(pos.x, pos.y);
+    },
+
+    tileToCart: function(x, y, tileWidth) {
         return {
             x: x * tileWidth,
             y: y * tileWidth
-        }
+        };
     }
 };

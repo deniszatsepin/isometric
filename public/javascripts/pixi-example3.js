@@ -65,19 +65,18 @@ var tree = isoTile('tree'); //function() {};
 var tileMethods = [grass, dirt, water, tree];
 
 function drawMap(terrain, xOffset, yOffset) {
-    var tileType, x, y, isoX, isoY, idx;
+    var tileType, x, y, pos, drawTile;
 
     for (var i = 0, iL = terrain.length; i < iL; i += 1) {
         for (var j = 0, jL = terrain[i].length; j < jL; j += 1) {
             x = j * tileWidth;
             y = i * tileHeight;
 
-            isoX = x - y;
-            isoY = (x + y) / 2;
+            pos = Converter.cartToIso(x, y);
 
             tileType = terrain[i][j];
-            var drawTile = tileMethods[tileType];
-            drawTile(xOffset + isoX, isoY + yOffset);
+            drawTile = tileMethods[tileType];
+            drawTile(pos.x + xOffset, pos.y + yOffset);
         }
     }
 }

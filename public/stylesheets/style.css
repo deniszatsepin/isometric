@@ -5,50 +5,30 @@ body {
 a {
   color: #00b7ff;
 }
-
 #RND {
-    width: 1600px;
-    height: 1600px;
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: #fff;
-    font-size: 8px;
+  width: 1600px;
+  font-size: 8px;
+  line-height: 8px;
 }
-
 #RND .tile {
-    width: 30px;
-    height: 30px;
-    background: rgba(0, 0, 0, .2);
-    border: 1px solid #aaa;
-    float: left;
+  display: block;
+  width: 30px;
+  height: 30px;
+  float: left;
+  border: 1px solid #aaa;
 }
-
-
 #RND .tile.ground {
-    background: #9b8d64;
+  background: #633;
 }
-
-#RND .tile.open {
-    background-color: #aaffaa;
-    border: 1px dotted #229933;
-}
-
-#RND .tile.close {
-    background: #999;
-    border-color: #000;
-}
-
-#RND .tile.current {
-    background: #00b7ff;
-    border-color: #ff44aa;
-}
-
 #RND .tile.wall {
-    background-color: #f40e00;
+  background: #f00;
 }
-
+#RND .tile.close {
+  background: #808080;
+}
+#RND .tile.open {
+  background: #adff2f;
+}
 #RND .tile.path {
-    background-color: #18abff;
-    border: 1px solid #196721;
+  background: #00f;
 }

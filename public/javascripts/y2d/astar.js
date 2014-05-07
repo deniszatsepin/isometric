@@ -1,4 +1,5 @@
-var AStar = (function AStar() {
+var Y2D = Y2D || {};
+Y2D.AStar = (function AStar() {
     var HRZ = 10, DGN = 14;
 
     function AStar() {

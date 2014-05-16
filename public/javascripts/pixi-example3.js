@@ -229,6 +229,5 @@ $(function() {
         sizeY: 50
     });
 
-
     var path = aStar.search({x: 1, y: 1}, {x: 24, y: 48});
 });

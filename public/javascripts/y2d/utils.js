@@ -1,3 +1,7 @@
+angular.module('Y2D', [])
+  .constant('async', window.async)
+  .constant('_', window._)
+  .constant('PIXI', window.PIXI);
 
 var Point = (function() {
     var Point = function() {
@@ -55,3 +59,4 @@ var Converter = {
         };
     }
 };
+

@@ -1,5 +1,5 @@
 angular.module('Y2D')
-    .factory('Map', function(PIXI, async, _) {
+    .factory('Map', function(PIXI, async, _, Tileset) {
         function Map() {
             PIXI.EventTarget.call( this );
             Map.prototype.init.apply(this, arguments);
@@ -15,15 +15,19 @@ angular.module('Y2D')
         Map.prototype.__loadTilesets = function(tilesets) {
             var scope = this;
             async.every(tilesets, function(tileset, done) {
-                var tile = new Y2D.Tileset(tileset);
-                tile.on('loaded', function() { done(true); });
-                tile.on('error', function() { done(false); });
+                var tile = new Tileset(tileset);
+                tile.on('loaded', function() {
+                    done(true);
+                });
+                tile.on('error', function(err) {
+                    done(false);
+                });
                 scope.tilesets.push(tile);
             }, _.bind(function(result) {
                 if (result) {
-                    this.emit('loaded');
+                    this.emit({type: 'loaded'});
                 } else {
-                    this.emit('error');
+                    this.emit({type: 'error'});
                 }
             }, this));
         };
@@ -39,12 +43,14 @@ angular.module('Y2D')
         Tileset.prototype.init = function(tileset) {
             _.extend(this, tileset);
             this.texture = PIXI.Texture.fromImage(this.image);
-            this.texture.on('loaded', _.bind(function() {
-                this.emit('loaded');
-            }));
-            this.texture.on('error', function(err) {
-                this.emit('error');
-            });
+            this.texture.on('update', _.bind(function(e) {
+                if (e.content.baseTexture.hasLoaded) {
+                    this.emit({type:'loaded'});
+                }
+            }, this));
+            this.texture.on('error', _.bind(function(err) {
+                this.emit({type: 'error'});
+            }, this));
         };
 
         return Tileset;

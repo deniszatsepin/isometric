@@ -1,7 +1,7 @@
 extends layout
 
 block content
-    .game-box(ng-controller='LearningController')
+    .game-box(ng-controller='LearningController', ng-keydown='onKeyDown($event)', tabindex='-1')
         p Welcome
         textarea(data-model='mapData')
         button.draw__button(ng-click='drawMap()') Draw

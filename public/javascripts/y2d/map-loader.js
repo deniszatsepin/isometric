@@ -1,26 +1,101 @@
 angular.module('Y2D')
     .factory('Game', function(PIXI, async, _, Map) {
         return {
+            activeKeys: [false, false, false, false],
+            xOffset: 0,
+            yOffset: 0,
+            camSpeed: 2,
+            mapWidth: 0,
+            mapHeight: 0,
+            viewportWidth: 640,
+            viewportHeight: 480,
+            xOffsetIncr: function() {
+                if (this.xOffset < this.mapWidth - this.viewportWidth) {
+                    this.xOffset += this.camSpeed;
+                }
+            },
+            xOffsetDecr: function() {
+                if (this.xOffset > 0) {
+                    this.xOffset -= this.camSpeed;
+                }
+                if (this.xOffset < 0) {
+                    this.xOffset = 0;
+                }
+            },
+
+            yOffsetIncr: function() {
+                if (this.yOffset < this.mapHeight - this.viewportHeight){
+                    this.yOffset += this.camSpeed;
+                }
+            },
+
+            yOffsetDecr: function() {
+                if (this.yOffset > 0) {
+                    this.yOffset -= this.camSpeed;
+                }
+                if (this.yOffset < 0) {
+                    this.yOffset = 0;
+                }
+            },
+
             stage: new PIXI.Stage(0x000000),
             renderer: PIXI.autoDetectRenderer(640, 480),
             graphics: new PIXI.Graphics(),
-            init: function() {
-                document.body.appendChild(this.renderer.view);
+            init: function(map) {
+                angular.element('.game-box').append(this.renderer.view);
+                this.map = map;
+                this.mapWidth = this.map.mapData.width * this.map.mapData.tilewidth;
+                this.mapHeight = this.map.mapData.height * this.map.mapData.tileheight;
             },
-            drawBackground: function(map) {
-                var sprites = map.drawLayer(0);
+            drawBackground: function() {
+                this.stage = new PIXI.Stage(0x000000);
+                var sprites = this.map.drawLayer(0, {
+                    x: this.xOffset,
+                    y: this.yOffset
+                });
                 _.each(sprites, _.bind(function(sprite) {
                     this.stage.addChild(sprite);
                 }, this));
-                var sprites = map.drawLayer(1);
+                var sprites = this.map.drawLayer(1, {
+                    x: this.xOffset,
+                    y: this.yOffset
+                });
                 _.each(sprites, _.bind(function(sprite) {
                     this.stage.addChild(sprite);
                 }, this));
             },
+            loop: function(period) {
+                var viewportChanged = false;
+                _.each(this.activeKeys, _.bind(function(key, id) {
+                    if (key) {
+                        viewportChanged = true;
+                        switch (id) {
+                            case 0: this.yOffsetIncr(); break;
+                            case 1: this.yOffsetDecr(); break;
+                            case 2: this.xOffsetDecr(); break;
+                            case 3: this.xOffsetIncr(); break;
+                        }
+                    };
+                }, this));
+
+                if (viewportChanged) {
+                    this.drawBackground();
+                }
+                this.renderer.render(this.stage);
+
+                var activeKeys = this.activeKeys;
+                for (var i = 0, len = activeKeys.length; i < len; i += 1) {
+                    activeKeys[i] = false;
+                }
+            },
+
             animate: function() {
                 var animate = _.bind(function() {
-                    this.renderer.render(this.stage);
+                    //TODO: send time period to the loop
+                    this.loop();
+                    requestAnimationFrame(animate);
                 }, this);
+
                 requestAnimationFrame(animate);
             }
         }
@@ -119,14 +194,15 @@ angular.module('Y2D')
             }, this));
         };
 
-        Map.prototype.drawLayer = function(id) {
+        Map.prototype.drawLayer = function(id, offset) {
             var layer = this.mapData.layers[id];
             if (!layer) return;
             var sprites = [];
-            var xOffset = 640 / 2 - this.mapData.tilewidth;
-            var yOffset = this.mapData.tileheight * 2;
+            var xOffset = 640 / 2 - this.mapData.tilewidth + offset.x;
+            var yOffset = this.mapData.tileheight * 2 + offset.y;
             for (var y = 0, yLen = layer.height; y < yLen; y += 1) {
                 for (var x = 0, xLen = layer.width; x < xLen; x += 1) {
+                    //TODO: add check - is tile in the view port
                     var pos = y * xLen + x;
                     var tileId = layer.data[pos];
                     if (tileId === 0) continue;

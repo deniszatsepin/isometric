@@ -20,3 +20,12 @@ Learning.run(function($rootScope, $http, PIXI, _, Map, Tileset) {
     console.log('Map: ', Map);
     console.log('Tileset', Tileset);
 });
+
+Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, Tileset) {
+    $scope.drawMap = function() {
+        console.log('click:', $scope.map);
+        Game.init();
+        Game.drawBackground($scope.map);
+        Game.animate();
+    };
+});

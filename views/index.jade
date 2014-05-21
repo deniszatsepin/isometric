@@ -1,5 +1,7 @@
 extends layout
 
 block content
-    p Welcome
-    textarea(data-model='mapData')
+    .game-box(ng-controller='LearningController')
+        p Welcome
+        textarea(data-model='mapData')
+        button.draw__button(ng-click='drawMap()') Draw

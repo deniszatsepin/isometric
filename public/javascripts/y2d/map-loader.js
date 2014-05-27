@@ -4,22 +4,23 @@ angular.module('Y2D')
             activeKeys: [false, false, false, false],
             xOffset: 0,
             yOffset: 0,
-            camSpeed: 2,
+            camSpeed: 6,
             mapWidth: 0,
             mapHeight: 0,
             viewportWidth: 640,
             viewportHeight: 480,
             xOffsetIncr: function() {
-                if (this.xOffset < this.mapWidth - this.viewportWidth) {
+                if (this.xOffset < this.mapWidth - this.viewportWidth * 1.5) {
                     this.xOffset += this.camSpeed;
                 }
             },
             xOffsetDecr: function() {
-                if (this.xOffset > 0) {
+                var border = this.mapWidth - this.viewportWidth * 1.5;
+                if (this.xOffset > -border) {
                     this.xOffset -= this.camSpeed;
                 }
-                if (this.xOffset < 0) {
-                    this.xOffset = 0;
+                if (this.xOffset < -border) {
+                    this.xOffset = -border;
                 }
             },
 
@@ -39,15 +40,19 @@ angular.module('Y2D')
             },
 
             stage: new PIXI.Stage(0x000000),
-            renderer: PIXI.autoDetectRenderer(640, 480),
+            renderer: null,
             graphics: new PIXI.Graphics(),
             init: function(map) {
+                this.renderer = PIXI.autoDetectRenderer(this.viewportWidth, this.viewportHeight);
                 angular.element('.game-box').append(this.renderer.view);
                 this.map = map;
-                this.mapWidth = this.map.mapData.width * this.map.mapData.tilewidth;
-                this.mapHeight = this.map.mapData.height * this.map.mapData.tileheight;
+                var cartMapWidth = this.map.mapData.width * this.map.mapData.tilewidth;
+                var cartMapHeight = this.map.mapData.height * this.map.mapData.tileheight;
+                this.mapWidth = Converter.cartToIso(cartMapWidth, 0).x;
+                this.mapHeight = Converter.cartToIso(cartMapWidth, cartMapHeight).y;
             },
             drawBackground: function() {
+                console.log('x: ', this.xOffset, ', y: ', this.yOffset);
                 this.stage = new PIXI.Stage(0x000000);
                 var sprites = this.map.drawLayer(0, {
                     x: this.xOffset,
@@ -64,29 +69,34 @@ angular.module('Y2D')
                     this.stage.addChild(sprite);
                 }, this));
             },
+
+            calculate: function() {
+
+            },
+
             loop: function(period) {
                 var viewportChanged = false;
                 _.each(this.activeKeys, _.bind(function(key, id) {
                     if (key) {
                         viewportChanged = true;
                         switch (id) {
-                            case 0: this.yOffsetIncr(); break;
-                            case 1: this.yOffsetDecr(); break;
-                            case 2: this.xOffsetDecr(); break;
-                            case 3: this.xOffsetIncr(); break;
+                            case 0: this.yOffsetDecr(); break;
+                            case 1: this.yOffsetIncr(); break;
+                            case 2: this.xOffsetIncr(); break;
+                            case 3: this.xOffsetDecr(); break;
                         }
                     };
                 }, this));
 
+                this.calculate();
+
                 if (viewportChanged) {
                     this.drawBackground();
                 }
+
                 this.renderer.render(this.stage);
 
                 var activeKeys = this.activeKeys;
-                for (var i = 0, len = activeKeys.length; i < len; i += 1) {
-                    activeKeys[i] = false;
-                }
             },
 
             animate: function() {
@@ -165,6 +175,7 @@ angular.module('Y2D')
             var rectangle = new PIXI.Rectangle(x, y, tileset.tilewidth, tileset.tileheight);
 
             return {
+                tileoffset: tileset.tileoffset || {},
                 texture: new PIXI.Texture(tileset.texture, rectangle),
                 getSprite: function (x, y) {
                     var sprite = new PIXI.Sprite(this.texture);
@@ -198,21 +209,25 @@ angular.module('Y2D')
             var layer = this.mapData.layers[id];
             if (!layer) return;
             var sprites = [];
-            var xOffset = 640 / 2 - this.mapData.tilewidth + offset.x;
-            var yOffset = this.mapData.tileheight * 2 + offset.y;
+            var xOffset = 640 / 2 - this.mapData.tilewidth / 2 + offset.x;
+            var yOffset = this.mapData.tileheight * 3 - offset.y;
             for (var y = 0, yLen = layer.height; y < yLen; y += 1) {
                 for (var x = 0, xLen = layer.width; x < xLen; x += 1) {
                     //TODO: add check - is tile in the view port
                     var pos = y * xLen + x;
                     var tileId = layer.data[pos];
                     if (tileId === 0) continue;
-                    if (!this.tiles[tileId]) {
-                        this.tiles[tileId] = this.getTileById(tileId);
+                    var tile = this.tiles[tileId];
+                    if (!tile) {
+                        tile = this.tiles[tileId] = this.getTileById(tileId);
                     }
+                    var xTileOffset = tile.tileoffset.x || 0;
+                    var yTileOffset = tile.tileoffset.y || 0;
                     var ddX = this.mapData.tilewidth * x / 2;
                     var ddY = this.mapData.tileheight * y;
                     var iso = Converter.cartToIso(ddX, ddY);
-                    var sprite = this.tiles[tileId].getSprite(iso.x + xOffset, iso.y + yOffset);
+
+                    var sprite = tile.getSprite(iso.x + xOffset + xTileOffset, iso.y + yOffset + yTileOffset);
                     sprites.push(sprite);
                 }
             }

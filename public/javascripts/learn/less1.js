@@ -31,12 +31,11 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
     };
 
     $scope.onKeyDown = function($event) {
+        $event.stopPropagation();
+        $event.preventDefault();
         var keyCode = $event.keyCode;
-        console.log(keyCode);
+        console.log("down: ", keyCode);
         var activeKeys = Game.activeKeys;
-        for (var i = 0, len = activeKeys.length; i < len; i += 1) {
-            activeKeys[i] = false;
-        }
         switch(keyCode) {
             case 38: //UP
                 activeKeys[0] = true;
@@ -49,6 +48,27 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
                 break;
             case 39:
                 activeKeys[3] = true;
+                break;
+        }
+    }
+    $scope.onKeyUp = function($event) {
+        $event.stopPropagation();
+        $event.preventDefault();
+        var keyCode = $event.keyCode;
+        console.log('up: ', keyCode);
+        var activeKeys = Game.activeKeys;
+        switch(keyCode) {
+            case 38: //UP
+                activeKeys[0] = false;
+                break;
+            case 40: //DOWN
+                activeKeys[1] = false;
+                break;
+            case 37: //LEFT
+                activeKeys[2] = false;
+                break;
+            case 39:
+                activeKeys[3] = false;
                 break;
         }
     }

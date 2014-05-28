@@ -9,6 +9,7 @@ angular.module('Y2D')
             mapHeight: 0,
             viewportWidth: 640,
             viewportHeight: 480,
+	        entities: [],
             xOffsetIncr: function() {
                 if (this.xOffset < this.mapWidth - this.viewportWidth * 1.5) {
                     this.xOffset += this.camSpeed;
@@ -68,15 +69,52 @@ angular.module('Y2D')
                 _.each(sprites, _.bind(function(sprite) {
                     this.stage.addChild(sprite);
                 }, this));
+
+	            _.each(this.entities, _.bind(function(entity) {
+		            this.stage.addChild(entity);
+	            }, this));
             },
 
             calculate: function() {
 
             },
 
+	        moveEntity: function(dir) {
+		        var directions = {
+			        '0000': 100,
+			        '0010': 0,
+			        '1010': 1,
+			        '1000': 2,
+			        '1001': 3,
+			        '0001': 4,
+			        '0101': 5,
+			        '0100': 6,
+			        '0110': 7
+		        };
+		        var direction = directions[dir];
+		        if (direction === undefined) {
+			        direction = 0;
+		        }
+
+		        _.each(this.entities, function(entity) {
+			        if (direction === 100) {
+				        if (entity.prevDirection !== undefined) {
+					        entity.textures = entity.animationTextures['idle'][entity.prevDirection];
+				        } else {
+					        entity.textures = entity.animationTextures['idle'][0];
+				        }
+			        } else {
+				        entity.prevDirection = direction;
+				        entity.textures = entity.animationTextures['run'][direction];
+			        }
+		        });
+	        },
+
             loop: function(period) {
                 var viewportChanged = false;
+	            var act = [];
                 _.each(this.activeKeys, _.bind(function(key, id) {
+	                act.push(key ? 1 : 0);
                     if (key) {
                         viewportChanged = true;
                         switch (id) {
@@ -85,8 +123,11 @@ angular.module('Y2D')
                             case 2: this.xOffsetIncr(); break;
                             case 3: this.xOffsetDecr(); break;
                         }
+
                     };
                 }, this));
+
+	            this.moveEntity(act.join(''));
 
                 this.calculate();
 

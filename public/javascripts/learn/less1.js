@@ -50,7 +50,7 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
                 activeKeys[3] = true;
                 break;
         }
-    }
+    };
     $scope.onKeyUp = function($event) {
         $event.stopPropagation();
         $event.preventDefault();
@@ -71,5 +71,41 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
                 activeKeys[3] = false;
                 break;
         }
-    }
+    };
+
+	$scope.assetsToLoader = ['/personages/minotaur.json'];
+	$scope.loader = new PIXI.AssetLoader($scope.assetsToLoader);
+	$scope.loader.onComplete = onAssetsLoaded;
+
+	$scope.addEntity = function() {
+		$scope.loader.load();
+	}
+
+	function onAssetsLoaded() {
+		var activities = ['idle', 'run', 'attack'];
+		var textures = {};
+
+		_.each(activities, function(activity) {
+			textures[activity] = [];
+			for (var i = 0; i < 8; i += 1) {
+				var currentAnimation = textures[activity][i] = [];
+				for (var j = 1; j < 9; j += 1) {
+					var texture = PIXI.Texture.fromFrame(activity + '/a' + i + '000' + j + '.png');
+					currentAnimation.push(texture);
+				}
+			}
+		});
+
+		var movieClip = new PIXI.MovieClip(textures['idle'][4]);
+		movieClip.animationTextures = textures;
+		movieClip.textures = movieClip.animationTextures['run'][4];
+		movieClip.position.x = 300;
+		movieClip.position.y = 300;
+		movieClip.anchor.x = 0.5;
+		movieClip.anchor.y = 1;
+		movieClip.animationSpeed = 0.2;
+		movieClip.play();
+		Game.entities.push(movieClip);
+	}
+
 });

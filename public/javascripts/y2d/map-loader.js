@@ -10,6 +10,9 @@ angular.module('Y2D')
             viewportWidth: 640,
             viewportHeight: 480,
 	        entities: [],
+            layers: [],
+            BACKGROUND: 0,
+            ENTITIES: 1,
             xOffsetIncr: function() {
                 if (this.xOffset < this.mapWidth - this.viewportWidth * 1.5) {
                     this.xOffset += this.camSpeed;
@@ -26,17 +29,21 @@ angular.module('Y2D')
             },
 
             yOffsetIncr: function() {
-                if (this.yOffset < this.mapHeight - this.viewportHeight){
+                if (this.yOffset < 0){
                     this.yOffset += this.camSpeed;
+                }
+                if (this.yOffset > 0) {
+                    this.yOffset = 0;
                 }
             },
 
             yOffsetDecr: function() {
-                if (this.yOffset > 0) {
+                var maxOffset = this.mapHeight - this.viewportHeight * 1.5;
+                if (this.yOffset > -maxOffset) {
                     this.yOffset -= this.camSpeed;
                 }
-                if (this.yOffset < 0) {
-                    this.yOffset = 0;
+                if (this.yOffset < -maxOffset) {
+                    this.yOffset = -maxOffset;
                 }
             },
 
@@ -51,28 +58,30 @@ angular.module('Y2D')
                 var cartMapHeight = this.map.mapData.height * this.map.mapData.tileheight;
                 this.mapWidth = Converter.cartToIso(cartMapWidth, 0).x;
                 this.mapHeight = Converter.cartToIso(cartMapWidth, cartMapHeight).y;
-            },
-            drawBackground: function() {
-                console.log('x: ', this.xOffset, ', y: ', this.yOffset);
-                this.stage = new PIXI.Stage(0x000000);
-                var sprites = this.map.drawLayer(0, {
-                    x: this.xOffset,
-                    y: this.yOffset
-                });
-                _.each(sprites, _.bind(function(sprite) {
-                    this.stage.addChild(sprite);
-                }, this));
-                var sprites = this.map.drawLayer(1, {
-                    x: this.xOffset,
-                    y: this.yOffset
-                });
-                _.each(sprites, _.bind(function(sprite) {
-                    this.stage.addChild(sprite);
-                }, this));
 
-	            _.each(this.entities, _.bind(function(entity) {
-		            this.stage.addChild(entity);
-	            }, this));
+                this.layers[this.BACKGROUND] = new PIXI.DisplayObjectContainer(); //Background
+                this.layers[this.ENTITIES] = new PIXI.DisplayObjectContainer(); //Entities
+                this.stage.addChild(this.layers[this.BACKGROUND]);
+                this.stage.addChild(this.layers[this.ENTITIES]);
+            },
+            drawBackground: function(first) {
+                if (first) {
+                    _.each(this.map.drawLayer(0), _.bind(function (sprite) {
+                        this.layers[this.BACKGROUND].addChild(sprite);
+                    }, this));
+
+                    _.each(this.map.drawLayer(1), _.bind(function (sprite) {
+                        this.layers[this.ENTITIES].addChild(sprite);
+                    }, this));
+
+                    var tile = this.layers[this.ENTITIES].getChildAt(0);
+                    _.each(this.entities, _.bind(function (entity) {
+                        tile.addChild(entity);
+                    }, this));
+                } else {
+                    this.layers[this.BACKGROUND].position = new PIXI.Point(this.xOffset, this.yOffset);
+                    this.layers[this.ENTITIES].position = new PIXI.Point(this.xOffset, this.yOffset);
+                }
             },
 
             calculate: function() {
@@ -96,7 +105,7 @@ angular.module('Y2D')
 			        direction = 0;
 		        }
 
-		        _.each(this.entities, function(entity) {
+		        _.each(this.entities, _.bind(function(entity) {
 			        if (direction === 100) {
 				        if (entity.prevDirection !== undefined) {
 					        entity.textures = entity.animationTextures['idle'][entity.prevDirection];
@@ -107,7 +116,25 @@ angular.module('Y2D')
 				        entity.prevDirection = direction;
 				        entity.textures = entity.animationTextures['run'][direction];
 			        }
-		        });
+                    var x = - this.xOffset;
+                    var y = - this.yOffset;
+                    entity.x = x % 64;
+                    entity.y = y % 64;
+                    console.log(x, ',', y);
+                    var tile = Converter.isoToTile(x, y, 32);
+                    if (tile.x < 0 || tile.y < 0) {
+                        entity.visible = false;
+                    } else {
+                        entity.visible = true;
+                        var xLen = this.map.mapData.layers[1].width;
+                        var pos = tile.y * xLen + tile.x;
+                        if (this.layers[this.ENTITIES].children.length > 0) {
+                            var t = this.layers[this.ENTITIES].getChildAt(pos);
+                            t.addChild(entity);
+                        }
+                    }
+                    console.log(tile, pos);
+		        }, this));
 	        },
 
             loop: function(period) {
@@ -118,8 +145,8 @@ angular.module('Y2D')
                     if (key) {
                         viewportChanged = true;
                         switch (id) {
-                            case 0: this.yOffsetDecr(); break;
-                            case 1: this.yOffsetIncr(); break;
+                            case 0: this.yOffsetIncr(); break;
+                            case 1: this.yOffsetDecr(); break;
                             case 2: this.xOffsetIncr(); break;
                             case 3: this.xOffsetDecr(); break;
                         }
@@ -132,7 +159,12 @@ angular.module('Y2D')
                 this.calculate();
 
                 if (viewportChanged) {
-                    this.drawBackground();
+                    if (!this.drawnOnce) {
+                        this.drawBackground(true);
+                        this.drawnOnce = true;
+                    } else {
+                        this.drawBackground();
+                    }
                 }
 
                 this.renderer.render(this.stage);
@@ -246,29 +278,36 @@ angular.module('Y2D')
             }, this));
         };
 
-        Map.prototype.drawLayer = function(id, offset) {
+        Map.prototype.drawLayer = function(id) {
             var layer = this.mapData.layers[id];
             if (!layer) return;
             var sprites = [];
-            var xOffset = 640 / 2 - this.mapData.tilewidth / 2 + offset.x;
-            var yOffset = this.mapData.tileheight * 3 - offset.y;
+            var xOffset = 640 / 2 - this.mapData.tilewidth / 2;
+            var yOffset = this.mapData.tileheight * 3;
             for (var y = 0, yLen = layer.height; y < yLen; y += 1) {
                 for (var x = 0, xLen = layer.width; x < xLen; x += 1) {
                     //TODO: add check - is tile in the view port
                     var pos = y * xLen + x;
                     var tileId = layer.data[pos];
-                    if (tileId === 0) continue;
-                    var tile = this.tiles[tileId];
-                    if (!tile) {
-                        tile = this.tiles[tileId] = this.getTileById(tileId);
+                    if (tileId !== 0) {
+                        var tile = this.tiles[tileId];
+                        if (!tile) {
+                            tile = this.tiles[tileId] = this.getTileById(tileId);
+                        }
+                        var xTileOffset = tile.tileoffset.x || 0;
+                        var yTileOffset = tile.tileoffset.y || 0;
                     }
-                    var xTileOffset = tile.tileoffset.x || 0;
-                    var yTileOffset = tile.tileoffset.y || 0;
                     var ddX = this.mapData.tilewidth * x / 2;
                     var ddY = this.mapData.tileheight * y;
                     var iso = Converter.cartToIso(ddX, ddY);
 
-                    var sprite = tile.getSprite(iso.x + xOffset + xTileOffset, iso.y + yOffset + yTileOffset);
+                    if (tileId !== 0) {
+                        var sprite = tile.getSprite(iso.x + xOffset + xTileOffset, iso.y + yOffset + yTileOffset);
+                    } else {
+                        var sprite = new PIXI.DisplayObjectContainer();
+                        sprite.x = iso.x + xOffset;
+                        sprite.y = iso.y + yOffset;
+                    }
                     sprites.push(sprite);
                 }
             }

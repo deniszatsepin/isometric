@@ -26,7 +26,6 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
     $scope.drawMap = function() {
         console.log('click:', $scope.map);
         Game.init($scope.map);
-        Game.drawBackground();
         Game.animate();
     };
 
@@ -99,12 +98,13 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
 		var movieClip = new PIXI.MovieClip(textures['idle'][4]);
 		movieClip.animationTextures = textures;
 		movieClip.textures = movieClip.animationTextures['run'][4];
-		movieClip.position.x = 300;
-		movieClip.position.y = 300;
+		movieClip.position.x = 0;
+		movieClip.position.y = 0;
 		movieClip.anchor.x = 0.5;
 		movieClip.anchor.y = 1;
 		movieClip.animationSpeed = 0.2;
 		movieClip.play();
+        movieClip.isoPos = new PIXI.Point(0, 0);
 		Game.entities.push(movieClip);
 	}
 

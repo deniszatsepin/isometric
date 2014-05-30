@@ -42,8 +42,8 @@ var Converter = {
 
     cartToTile: function(x, y, tileWidth) {
         return {
-            x: Math.floor(pos.x / tileWidth),
-            y: Math.floor(pos.y / tileWidth)
+            x: Math.floor(x / tileWidth),
+            y: Math.floor(y / tileWidth)
         };
     },
 

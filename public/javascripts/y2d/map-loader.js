@@ -90,10 +90,15 @@ angular.module('Y2D')
                     var row = collisionsMap[i] = [];
                     for (var j = 0; j < width; j += 1) {
                         var pos = i * width + j;
-                        row[j] = 1 - data[pos];
+                        row[j] = data[pos];
                     }
                 }
-                this.aStarGraph = new Graph(collisionsMap);
+                //this.aStarGraph = new Graph(collisionsMap);
+                this.findGrid = new PF.Grid(width, height, collisionsMap);
+                this.finder = new PF.AStarFinder({
+                    allowDiagonal: true,
+                    dontCrossCorners: true
+                });
             },
 
 	        stageClick: function(info) {
@@ -113,14 +118,18 @@ angular.module('Y2D')
 			        console.log('Tile: ', entity.targetTile);
                     var current = Converter.isoToTile(entity.x, entity.y, 32);
                     entity.currentTile = current;
+                    /*
                     var start = this.aStarGraph.nodes[current.y][current.x];
                     var end = this.aStarGraph.nodes[entity.targetTile.y][entity.targetTile.x];
                     var path = astar.search(this.aStarGraph.nodes, start, end, true);
+                    */
+                    var path = this.finder.findPath(current.x, current.y, entity.targetTile.x, entity.targetTile.y, this.findGrid.clone());
+                    path.shift();
                     entity.path = path;
                     console.log('Path: ', path);
                     if (path.length > 0) {
                         var last = path[path.length - 1];
-                        console.log('Path: x: ', last.y, ', y: ', last.x);
+                        console.log('Path: x: ', last[0], ', y: ', last[1]);
                     }
 		        }, this));
 	        },
@@ -154,12 +163,12 @@ angular.module('Y2D')
                 _.each(this.entities, _.bind(function(entity) {
                     var path = entity.path;
                     if (path) {
-                        while (path.length > 0 && path[0].finished) {
-                            path[0].finished = false;
+                        while (path.length > 0 && entity.targetPos && entity.targetPos.finished) {
+                            entity.targetPos.finished = false;
                             path.shift();
                         }
                         if (path.length > 0) {
-                            entity.targetPos = Converter.tileToIso(path[0].y, path[0].x, 32); //swiched x and y because of astar implementation
+                            entity.targetPos = Converter.tileToIso(path[0][0], path[0][1], 32);
                         }
 
                         if (entity.targetPos) {
@@ -186,7 +195,7 @@ angular.module('Y2D')
                                 entity.y = pos.y;
                                 if (entity.x === targetX && entity.y === targetY) {
                                     if (entity.path && entity.path.length > 0) {
-                                        entity.path[0].finished = true;
+                                        entity.targetPos.finished = true;
                                     }
                                 }
                             } else {

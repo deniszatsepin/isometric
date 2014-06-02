@@ -14,12 +14,16 @@ angular.module('Y2D')
             BACKGROUND: 0,
             ENTITIES: 1,
             xOffsetIncr: function() {
-                if (this.xOffset < this.mapWidth - this.viewportWidth * 1.5) {
+	            var bound = this.bounds.right + this.viewportWidth / 2;
+                if (this.xOffset < bound) {
                     this.xOffset += this.camSpeed;
                 }
+	            if (this.xOffset > bound) {
+		            this.xOffset = bound;
+	            }
             },
             xOffsetDecr: function() {
-                var border = this.mapWidth - this.viewportWidth * 1.5;
+                var border = this.bounds.left - this.viewportWidth * 0.5;
                 if (this.xOffset > -border) {
                     this.xOffset -= this.camSpeed;
                 }
@@ -29,16 +33,17 @@ angular.module('Y2D')
             },
 
             yOffsetIncr: function() {
-                if (this.yOffset < 0){
+	            var border = this.viewportHeight * 0.5;
+                if (this.yOffset < border){
                     this.yOffset += this.camSpeed;
                 }
-                if (this.yOffset > 0) {
+                if (this.yOffset > border) {
                     this.yOffset = 0;
                 }
             },
 
             yOffsetDecr: function() {
-                var maxOffset = this.mapHeight - this.viewportHeight * 1.5;
+                var maxOffset = this.bounds.bottom - this.viewportHeight * 0.5;
                 if (this.yOffset > -maxOffset) {
                     this.yOffset -= this.camSpeed;
                 }
@@ -56,6 +61,12 @@ angular.module('Y2D')
                 this.map = map;
                 var cartMapWidth = this.map.mapData.width * this.map.mapData.tilewidth;
                 var cartMapHeight = this.map.mapData.height * this.map.mapData.tileheight;
+	            this.bounds = {
+		            left: Math.abs(Converter.cartToIso(0, cartMapHeight).x),
+		            right: Math.abs(Converter.cartToIso(cartMapWidth / 2, 0).x),
+		            top: 0,
+		            bottom: Converter.cartToIso(cartMapWidth / 2, cartMapHeight).y
+	            };
                 this.mapWidth = Converter.cartToIso(cartMapWidth, 0).x;
                 this.mapHeight = Converter.cartToIso(cartMapWidth, cartMapHeight).y;
 
@@ -63,7 +74,26 @@ angular.module('Y2D')
                 this.layers[this.ENTITIES] = new PIXI.DisplayObjectContainer(); //Entities
                 this.stage.addChild(this.layers[this.BACKGROUND]);
                 this.stage.addChild(this.layers[this.ENTITIES]);
+	            this.stage.click = _.bind(this.stageClick, this);
             },
+
+	        stageClick: function(info) {
+		        var oEvent = info.originalEvent;
+		        var pos = {
+			        x: oEvent.layerX,
+			        y: oEvent.layerY
+		        }
+		        console.log(pos);
+		        _.each(this.entities, _.bind(function(entity) {
+			        entity.targetPos = {
+				        x: pos.x - this.xOffset,
+				        y: pos.y - this.yOffset + 32
+			        };
+			        console.log(entity.targetPos.x, ', ', entity.targetPos.y);
+			        console.log('Tile: ', Converter.isoToTile(entity.targetPos.x, entity.targetPos.y, 32));
+		        }, this));
+	        },
+
             drawBackground: function(first) {
                 if (first) {
                     _.each(this.map.drawLayer(0), _.bind(function (sprite) {
@@ -74,9 +104,9 @@ angular.module('Y2D')
                         this.layers[this.ENTITIES].addChild(sprite);
                     }, this));
 
-                    var tile = this.layers[this.ENTITIES].getChildAt(0);
+                    var entities = this.layers[this.ENTITIES];
                     _.each(this.entities, _.bind(function (entity) {
-                        tile.addChild(entity);
+                        entities.addChild(entity);
                     }, this));
                 } else {
                     this.layers[this.BACKGROUND].position = new PIXI.Point(this.xOffset, this.yOffset);
@@ -85,11 +115,60 @@ angular.module('Y2D')
             },
 
             calculate: function() {
+	            var mapDataLayers = this.map.mapData.layers;
+	            var objectLayer = mapDataLayers[1];
+	            var collisionLayer = mapDataLayers[2];
+	            _.each(this.entities, _.bind(function(entity) {
+
+		            if (entity.targetPos) {
+			            var currentX = entity.x;
+			            var currentY = entity.y;
+			            var targetX = entity.targetPos.x;
+			            var targetY = entity.targetPos.y;
+
+			            var velocity = 2;
+			            if (currentX !== targetX || currentY !== targetY) {
+				            var pos = this.moveEntity(entity, currentX, currentY, targetX, targetY, velocity);
+
+				            var targetTile = Converter.isoToTile(pos.x, pos.y, 32);
+				            var targetTilePos = (targetTile.y - 1) * collisionLayer.width + (targetTile.x - 1);
+				            if (collisionLayer.data[targetTilePos] > 0) {
+					            entity.targetPos.x = currentX;
+					            entity.targetPos.y = currentY;
+					            return;
+				            }
+
+				            entity.x = pos.x;
+				            entity.y = pos.y;
+			            } else {
+				            if (entity.prevDirection !== undefined) {
+					            entity.textures = entity.animationTextures['idle'][entity.prevDirection];
+				            } else {
+					            entity.textures = entity.animationTextures['idle'][0];
+				            }
+			            }
+			            var pos = Converter.isoToTile(entity.x, entity.y, 32);
+			            var width = objectLayer.width;
+			            entity.depth = pos.y * width + entity.x;
+		            }
+	            }, this));
+
+	            var entities = this.layers[this.ENTITIES].children;
+	            entities.sort(function(a, b) {
+		            return a.y - b.y;
+	            });
 
             },
 
-	        moveEntity: function(dir) {
-		        var directions = {
+	        moveEntity: function(entity, currentX, currentY, targetX, targetY, velocity) {
+				var angle = Math.atan2(targetY - currentY, targetX - currentX) * 180 / Math.PI;
+		        if (angle < 0) {
+			        angle = 360 + angle;
+		        }
+		        var dir = Math.floor(angle / 45);
+		        var directions = [4, 5, 6, 7, 0, 1, 2, 3];
+		        /*
+		        {
 			        '0000': 100,
 			        '0010': 0,
 			        '1010': 1,
@@ -100,41 +179,36 @@ angular.module('Y2D')
 			        '0100': 6,
 			        '0110': 7
 		        };
+		        */
 		        var direction = directions[dir];
 		        if (direction === undefined) {
 			        direction = 0;
 		        }
 
-		        _.each(this.entities, _.bind(function(entity) {
-			        if (direction === 100) {
-				        if (entity.prevDirection !== undefined) {
-					        entity.textures = entity.animationTextures['idle'][entity.prevDirection];
-				        } else {
-					        entity.textures = entity.animationTextures['idle'][0];
+		        entity.prevDirection = direction;
+		        entity.textures = entity.animationTextures['run'][direction];
+
+		        var getTarget = function(targetX, currentX) {
+			        if (targetX - currentX > 0) {
+				        currentX += velocity;
+				        if (currentX > targetX) {
+					        currentX = targetX;
 				        }
 			        } else {
-				        entity.prevDirection = direction;
-				        entity.textures = entity.animationTextures['run'][direction];
+				        if (targetX - currentX < 0) {
+					        currentX -= velocity;
+					        if (currentX < targetX) {
+						        currentX = targetX;
+					        }
+				        }
 			        }
-                    var x = - this.xOffset;
-                    var y = - this.yOffset;
-                    entity.x = x % 64;
-                    entity.y = y % 64;
-                    console.log(x, ',', y);
-                    var tile = Converter.isoToTile(x, y, 32);
-                    if (tile.x < 0 || tile.y < 0) {
-                        entity.visible = false;
-                    } else {
-                        entity.visible = true;
-                        var xLen = this.map.mapData.layers[1].width;
-                        var pos = tile.y * xLen + tile.x;
-                        if (this.layers[this.ENTITIES].children.length > 0) {
-                            var t = this.layers[this.ENTITIES].getChildAt(pos);
-                            t.addChild(entity);
-                        }
-                    }
-                    console.log(tile, pos);
-		        }, this));
+			        return currentX;
+		        };
+
+				return {
+					x: getTarget(targetX, currentX),
+					y: getTarget(targetY, currentY)
+				};
 	        },
 
             loop: function(period) {
@@ -154,7 +228,7 @@ angular.module('Y2D')
                     };
                 }, this));
 
-	            this.moveEntity(act.join(''));
+	            //this.moveEntity(act.join(''));
 
                 this.calculate();
 
@@ -282,13 +356,14 @@ angular.module('Y2D')
             var layer = this.mapData.layers[id];
             if (!layer) return;
             var sprites = [];
-            var xOffset = 640 / 2 - this.mapData.tilewidth / 2;
-            var yOffset = this.mapData.tileheight * 3;
+            var xOffset = -this.mapData.tilewidth / 2;
+            var yOffset = this.mapData.tileheight;
             for (var y = 0, yLen = layer.height; y < yLen; y += 1) {
                 for (var x = 0, xLen = layer.width; x < xLen; x += 1) {
                     //TODO: add check - is tile in the view port
                     var pos = y * xLen + x;
                     var tileId = layer.data[pos];
+
                     if (tileId !== 0) {
                         var tile = this.tiles[tileId];
                         if (!tile) {
@@ -303,10 +378,16 @@ angular.module('Y2D')
 
                     if (tileId !== 0) {
                         var sprite = tile.getSprite(iso.x + xOffset + xTileOffset, iso.y + yOffset + yTileOffset);
+	                    sprite.depth = pos;
                     } else {
-                        var sprite = new PIXI.DisplayObjectContainer();
-                        sprite.x = iso.x + xOffset;
-                        sprite.y = iso.y + yOffset;
+	                    if (id === 0) {
+		                    var sprite = new PIXI.DisplayObjectContainer();
+		                    sprite.x = iso.x + xOffset;
+		                    sprite.y = iso.y + yOffset;
+	                    } else {
+		                    continue;
+	                    }
+
                     }
                     sprites.push(sprite);
                 }

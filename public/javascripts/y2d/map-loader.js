@@ -13,6 +13,7 @@ angular.module('Y2D')
             layers: [],
             BACKGROUND: 0,
             ENTITIES: 1,
+            COLLISION: 2,
             xOffsetIncr: function() {
 	            var bound = this.bounds.right + this.viewportWidth / 2;
                 if (this.xOffset < bound) {
@@ -59,6 +60,7 @@ angular.module('Y2D')
                 this.renderer = PIXI.autoDetectRenderer(this.viewportWidth, this.viewportHeight);
                 angular.element('.game-box').append(this.renderer.view);
                 this.map = map;
+                this.initAstar();
                 var cartMapWidth = this.map.mapData.width * this.map.mapData.tilewidth;
                 var cartMapHeight = this.map.mapData.height * this.map.mapData.tileheight;
 	            this.bounds = {
@@ -72,9 +74,26 @@ angular.module('Y2D')
 
                 this.layers[this.BACKGROUND] = new PIXI.DisplayObjectContainer(); //Background
                 this.layers[this.ENTITIES] = new PIXI.DisplayObjectContainer(); //Entities
+                this.layers[this.COLLISION] = new PIXI.DisplayObjectContainer(); //Entities
                 this.stage.addChild(this.layers[this.BACKGROUND]);
                 this.stage.addChild(this.layers[this.ENTITIES]);
 	            this.stage.click = _.bind(this.stageClick, this);
+            },
+
+            initAstar: function() {
+                var collisionsLayer = this.map.mapData.layers[2];
+                var width = collisionsLayer.width;
+                var height = collisionsLayer.height;
+                var data = collisionsLayer.data;
+                var collisionsMap = [];
+                for (var i = 0; i < height; i += 1) {
+                    var row = collisionsMap[i] = [];
+                    for (var j = 0; j < width; j += 1) {
+                        var pos = i * width + j;
+                        row[j] = 1 - data[pos];
+                    }
+                }
+                this.aStarGraph = new Graph(collisionsMap);
             },
 
 	        stageClick: function(info) {
@@ -85,12 +104,24 @@ angular.module('Y2D')
 		        }
 		        console.log(pos);
 		        _.each(this.entities, _.bind(function(entity) {
-			        entity.targetPos = {
+			        var targetPos = {
 				        x: pos.x - this.xOffset,
-				        y: pos.y - this.yOffset + 32
+				        y: pos.y - this.yOffset
 			        };
-			        console.log(entity.targetPos.x, ', ', entity.targetPos.y);
-			        console.log('Tile: ', Converter.isoToTile(entity.targetPos.x, entity.targetPos.y, 32));
+                    entity.targetTile = Converter.isoToTile(targetPos.x, targetPos.y, 32);
+			        console.log(targetPos.x, ', ', targetPos.y);
+			        console.log('Tile: ', entity.targetTile);
+                    var current = Converter.isoToTile(entity.x, entity.y, 32);
+                    entity.currentTile = current;
+                    var start = this.aStarGraph.nodes[current.y][current.x];
+                    var end = this.aStarGraph.nodes[entity.targetTile.y][entity.targetTile.x];
+                    var path = astar.search(this.aStarGraph.nodes, start, end, true);
+                    entity.path = path;
+                    console.log('Path: ', path);
+                    if (path.length > 0) {
+                        var last = path[path.length - 1];
+                        console.log('Path: x: ', last.y, ', y: ', last.x);
+                    }
 		        }, this));
 	        },
 
@@ -99,9 +130,11 @@ angular.module('Y2D')
                     _.each(this.map.drawLayer(0), _.bind(function (sprite) {
                         this.layers[this.BACKGROUND].addChild(sprite);
                     }, this));
-
                     _.each(this.map.drawLayer(1), _.bind(function (sprite) {
                         this.layers[this.ENTITIES].addChild(sprite);
+                    }, this));
+                    _.each(this.map.drawLayer(2), _.bind(function (sprite) {
+                        this.layers[this.COLLISION].addChild(sprite);
                     }, this));
 
                     var entities = this.layers[this.ENTITIES];
@@ -118,44 +151,64 @@ angular.module('Y2D')
 	            var mapDataLayers = this.map.mapData.layers;
 	            var objectLayer = mapDataLayers[1];
 	            var collisionLayer = mapDataLayers[2];
-	            _.each(this.entities, _.bind(function(entity) {
+                _.each(this.entities, _.bind(function(entity) {
+                    var path = entity.path;
+                    if (path) {
+                        while (path.length > 0 && path[0].finished) {
+                            path[0].finished = false;
+                            path.shift();
+                        }
+                        if (path.length > 0) {
+                            entity.targetPos = Converter.tileToIso(path[0].y, path[0].x, 32); //swiched x and y because of astar implementation
+                        }
 
-		            if (entity.targetPos) {
-			            var currentX = entity.x;
-			            var currentY = entity.y;
-			            var targetX = entity.targetPos.x;
-			            var targetY = entity.targetPos.y;
+                        if (entity.targetPos) {
+                            var currentX = entity.x;
+                            var currentY = entity.y;
+                            var targetX = entity.targetPos.x;
+                            var targetY = entity.targetPos.y;
 
-			            var velocity = 2;
-			            if (currentX !== targetX || currentY !== targetY) {
-				            var pos = this.moveEntity(entity, currentX, currentY, targetX, targetY, velocity);
+                            var velocity = 2;
+                            if (currentX !== targetX || currentY !== targetY) {
+                                var pos = this.moveEntity(entity, currentX, currentY, targetX, targetY, velocity);
 
-				            var targetTile = Converter.isoToTile(pos.x, pos.y, 32);
-				            var targetTilePos = (targetTile.y - 1) * collisionLayer.width + (targetTile.x - 1);
-				            if (collisionLayer.data[targetTilePos] > 0) {
-					            entity.targetPos.x = currentX;
-					            entity.targetPos.y = currentY;
-					            return;
-				            }
+                                /*
+                                 var targetTile = Converter.isoToTile(pos.x, pos.y, 32);
+                                 var targetTilePos = (targetTile.y - 1) * collisionLayer.width + (targetTile.x - 1);
+                                 if (collisionLayer.data[targetTilePos] > 0) {
+                                 entity.targetPos.x = currentX;
+                                 entity.targetPos.y = currentY;
+                                 return;
+                                 }
+                                 */
 
-				            entity.x = pos.x;
-				            entity.y = pos.y;
-			            } else {
-				            if (entity.prevDirection !== undefined) {
-					            entity.textures = entity.animationTextures['idle'][entity.prevDirection];
-				            } else {
-					            entity.textures = entity.animationTextures['idle'][0];
-				            }
-			            }
-			            var pos = Converter.isoToTile(entity.x, entity.y, 32);
-			            var width = objectLayer.width;
-			            entity.depth = pos.y * width + entity.x;
-		            }
+                                entity.x = pos.x;
+                                entity.y = pos.y;
+                                if (entity.x === targetX && entity.y === targetY) {
+                                    if (entity.path && entity.path.length > 0) {
+                                        entity.path[0].finished = true;
+                                    }
+                                }
+                            } else {
+                                if (entity.prevDirection !== undefined) {
+                                    entity.textures = entity.animationTextures['idle'][entity.prevDirection];
+                                } else {
+                                    entity.textures = entity.animationTextures['idle'][0];
+                                }
+                            }
+                            var pos = Converter.isoToTile(entity.x, entity.y + 32, 32);
+                            var width = objectLayer.width;
+                            entity.depth = pos.y * width + pos.x;
+                        }
+
+                    }
+
+
 	            }, this));
 
 	            var entities = this.layers[this.ENTITIES].children;
 	            entities.sort(function(a, b) {
-		            return a.y - b.y;
+		            return a.depth - b.depth;
 	            });
 
             },
@@ -379,17 +432,18 @@ angular.module('Y2D')
                     if (tileId !== 0) {
                         var sprite = tile.getSprite(iso.x + xOffset + xTileOffset, iso.y + yOffset + yTileOffset);
 	                    sprite.depth = pos;
+                        sprites.push(sprite);
                     } else {
 	                    if (id === 0) {
 		                    var sprite = new PIXI.DisplayObjectContainer();
 		                    sprite.x = iso.x + xOffset;
 		                    sprite.y = iso.y + yOffset;
+                            sprites.push(sprite);
 	                    } else {
 		                    continue;
 	                    }
 
                     }
-                    sprites.push(sprite);
                 }
             }
             return sprites;

@@ -94,14 +94,17 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
 				}
 			}
 		});
+        console.log("CONVERTER: ", Converter.cartToTile(0, 33, 32));
+        console.log("CONVERTER: ", Converter.isoToTile(15, 46, 32));
 
 		var movieClip = new PIXI.MovieClip(textures['idle'][4]);
 		movieClip.animationTextures = textures;
 		movieClip.textures = movieClip.animationTextures['run'][4];
-		movieClip.position.x = 300;
-		movieClip.position.y = 300;
+        var pos = Converter.tileToIso(4, 4, 32);
+		movieClip.position.x = pos.x;
+		movieClip.position.y = pos.y;
 		movieClip.anchor.x = 0.5;
-		movieClip.anchor.y = 1;
+		movieClip.anchor.y = 0.6;
 		movieClip.animationSpeed = 0.2;
 		movieClip.play();
         movieClip.isoPos = new PIXI.Point(0, 0);

@@ -315,12 +315,14 @@ angular.module('Y2D')
             },
 
             animate: function() {
-                var animate = _.bind(function() {
+                var animate = _.bind(function(timestamp) {
                     //TODO: send time period to the loop
-                    this.loop();
+                    var progress = timestamp - this.start;
+                    this.loop(progress);
+                    this.start = timestamp;
                     requestAnimationFrame(animate);
                 }, this);
-
+                this.start = Date.now();
                 requestAnimationFrame(animate);
             }
         }

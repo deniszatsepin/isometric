@@ -78,7 +78,7 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
 
 	$scope.addEntity = function() {
 		$scope.loader.load();
-	}
+	};
 
 	function onAssetsLoaded() {
 		var activities = ['idle', 'run', 'attack'];
@@ -97,10 +97,17 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
         console.log("CONVERTER: ", Converter.cartToTile(0, 33, 32));
         console.log("CONVERTER: ", Converter.isoToTile(15, 46, 32));
 
-		var movieClip = new PIXI.MovieClip(textures['idle'][4]);
+        var bull1 = createEntity(4, 4, textures);
+        var bull2 = createEntity(12, 3, textures);
+
+		Game.entities.push(bull1);
+        Game.entities.push(bull2);
+	}
+
+    function createEntity(x, y, textures) {
+        var movieClip = new PIXI.MovieClip(textures['idle'][4]);
 		movieClip.animationTextures = textures;
-		movieClip.textures = movieClip.animationTextures['run'][4];
-        var pos = Converter.tileToIso(4, 4, 32);
+        var pos = Converter.tileToIso(x, y, 32);
 		movieClip.position.x = pos.x;
 		movieClip.position.y = pos.y;
 		movieClip.anchor.x = 0.5;
@@ -108,7 +115,10 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
 		movieClip.animationSpeed = 0.2;
 		movieClip.play();
         movieClip.isoPos = new PIXI.Point(0, 0);
-		Game.entities.push(movieClip);
-	}
+        movieClip.click = function() {
+            console.log('ENTITY: ', this, arguments);
+        };
+        return movieClip;
+    }
 
 });

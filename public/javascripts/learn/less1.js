@@ -4,13 +4,21 @@
 
 var Learning = angular.module('Learning', ['Y2D']);
 
-Learning.run(function($rootScope, $http, PIXI, _, Map, Tileset) {
+Learning.run(function($rootScope, $http, $timeout, PIXI, _, Map, Tileset, Game, AssetLoaderService) {
     $rootScope.mapData = {};
     $http.get('/maps/collision_map.json').success(function(data) {
         $rootScope.mapData = data;
         $rootScope.map = new Map(data);
         $rootScope.map.on('loaded', function() {
             console.log('Map has been loaded.');
+            AssetLoaderService.load().then(function() {
+                Game.init($rootScope.map);
+                Game.animate();
+                Game.activeKeys[2] = true;
+                $timeout(function() {
+                    Game.activeKeys[2] = false;
+                }, 1000);
+            });
         });
         $rootScope.map.on('error', function() {
             console.log('Map hasn\'t been loaded');
@@ -21,13 +29,57 @@ Learning.run(function($rootScope, $http, PIXI, _, Map, Tileset) {
     console.log('Tileset', Tileset);
 });
 
-Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, Tileset) {
+Learning.service('AssetLoaderService', ['$q', '_', 'PIXI', 'Game', function($q, _, PIXI, Game) {
+    function load(assets) {
+        var deferred = $q.defer();
+        var assetsToLoader = assets || ['/personages/minotaur.json'];
+        var loader = new PIXI.AssetLoader(assetsToLoader);
+        loader.onComplete = onAssetsLoaded;
+
+        function onAssetsLoaded() {
+            var activities = ['idle', 'run', 'attack'];
+            var textures = {};
+
+            _.each(activities, function(activity) {
+                textures[activity] = [];
+                for (var i = 0; i < 8; i += 1) {
+                    var currentAnimation = textures[activity][i] = [];
+                    for (var j = 1; j < 9; j += 1) {
+                        var texture = PIXI.Texture.fromFrame(activity + '/a' + i + '000' + j + '.png');
+                        currentAnimation.push(texture);
+                    }
+                }
+            });
+            console.log("CONVERTER: ", Converter.cartToTile(0, 33, 32));
+            console.log("CONVERTER: ", Converter.isoToTile(15, 46, 32));
+
+            var movieClip = new PIXI.MovieClip(textures['idle'][4]);
+            movieClip.animationTextures = textures;
+            movieClip.textures = movieClip.animationTextures['run'][4];
+            var pos = Converter.tileToIso(4, 4, 32);
+            movieClip.position.x = pos.x;
+            movieClip.position.y = pos.y;
+            movieClip.anchor.x = 0.5;
+            movieClip.anchor.y = 0.6;
+            movieClip.animationSpeed = 0.2;
+            movieClip.play();
+            movieClip.isoPos = new PIXI.Point(0, 0);
+            Game.entities.push(movieClip);
+            deferred.resolve(true);
+        }
+        loader.load();
+        return deferred.promise;
+    }
+
+    return {
+        load: function() {
+            return load.apply(null, arguments);
+        }
+    }
+}]);
+
+Learning.controller('LearningController', function($scope, PIXI, _, Game) {
     $scope.key = [false, false, false, false];
-    $scope.drawMap = function() {
-        console.log('click:', $scope.map);
-        Game.init($scope.map);
-        Game.animate();
-    };
 
     $scope.onKeyDown = function($event) {
         $event.stopPropagation();
@@ -72,43 +124,13 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game, Map, T
         }
     };
 
-	$scope.assetsToLoader = ['/personages/minotaur.json'];
-	$scope.loader = new PIXI.AssetLoader($scope.assetsToLoader);
-	$scope.loader.onComplete = onAssetsLoaded;
 
-	$scope.addEntity = function() {
-		$scope.loader.load();
-	}
+});
 
-	function onAssetsLoaded() {
-		var activities = ['idle', 'run', 'attack'];
-		var textures = {};
-
-		_.each(activities, function(activity) {
-			textures[activity] = [];
-			for (var i = 0; i < 8; i += 1) {
-				var currentAnimation = textures[activity][i] = [];
-				for (var j = 1; j < 9; j += 1) {
-					var texture = PIXI.Texture.fromFrame(activity + '/a' + i + '000' + j + '.png');
-					currentAnimation.push(texture);
-				}
-			}
-		});
-        console.log("CONVERTER: ", Converter.cartToTile(0, 33, 32));
-        console.log("CONVERTER: ", Converter.isoToTile(15, 46, 32));
-
-		var movieClip = new PIXI.MovieClip(textures['idle'][4]);
-		movieClip.animationTextures = textures;
-		movieClip.textures = movieClip.animationTextures['run'][4];
-        var pos = Converter.tileToIso(4, 4, 32);
-		movieClip.position.x = pos.x;
-		movieClip.position.y = pos.y;
-		movieClip.anchor.x = 0.5;
-		movieClip.anchor.y = 0.6;
-		movieClip.animationSpeed = 0.2;
-		movieClip.play();
-        movieClip.isoPos = new PIXI.Point(0, 0);
-		Game.entities.push(movieClip);
-	}
-
+Learning.directive('gameWrapper', function() {
+    return {
+        link: function(scope, element) {
+            element.focus();
+        }
+    }
 });

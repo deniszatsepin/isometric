@@ -126,6 +126,56 @@ Learning.controller('LearningController', function($scope, PIXI, _, Game) {
 
 
 });
+/*
+	$scope.assetsToLoader = ['/personages/minotaur.json'];
+	$scope.loader = new PIXI.AssetLoader($scope.assetsToLoader);
+	$scope.loader.onComplete = onAssetsLoaded;
+
+	$scope.addEntity = function() {
+		$scope.loader.load();
+	};
+
+	function onAssetsLoaded() {
+		var activities = ['idle', 'run', 'attack'];
+		var textures = {};
+
+		_.each(activities, function(activity) {
+			textures[activity] = [];
+			for (var i = 0; i < 8; i += 1) {
+				var currentAnimation = textures[activity][i] = [];
+				for (var j = 1; j < 9; j += 1) {
+					var texture = PIXI.Texture.fromFrame(activity + '/a' + i + '000' + j + '.png');
+					currentAnimation.push(texture);
+				}
+			}
+		});
+        console.log("CONVERTER: ", Converter.cartToTile(0, 33, 32));
+        console.log("CONVERTER: ", Converter.isoToTile(15, 46, 32));
+
+        var bull1 = createEntity(4, 4, textures);
+        var bull2 = createEntity(12, 3, textures);
+
+		Game.entities.push(bull1);
+        Game.entities.push(bull2);
+	}
+
+    function createEntity(x, y, textures) {
+        var movieClip = new PIXI.MovieClip(textures['idle'][4]);
+		movieClip.animationTextures = textures;
+        var pos = Converter.tileToIso(x, y, 32);
+		movieClip.position.x = pos.x;
+		movieClip.position.y = pos.y;
+		movieClip.anchor.x = 0.5;
+		movieClip.anchor.y = 0.6;
+		movieClip.animationSpeed = 0.2;
+		movieClip.play();
+        movieClip.isoPos = new PIXI.Point(0, 0);
+        movieClip.click = function() {
+            console.log('ENTITY: ', this, arguments);
+        };
+        return movieClip;
+    }
+    */
 
 Learning.directive('gameWrapper', function() {
     return {
